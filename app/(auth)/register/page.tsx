@@ -41,32 +41,49 @@ export default function RegisterPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
+    
+    try {
+      // Call our registration API endpoint
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
           full_name: fullName,
           role,
-        },
-      },
-    });
+        }),
+      });
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
+      const result = await response.json();
 
-    if (data?.user) {
-      // If the user is immediately signed in, redirect to dashboard.
+      if (!response.ok) {
+        setError(result.error || "Registration failed");
+        setLoading(false);
+        return;
+      }
+
+      // Registration successful, try to sign in immediately
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        setError(signInError.message);
+        setLoading(false);
+        return;
+      }
+
+      // Sign in successful, redirect to dashboard
       router.push("/dashboard");
       return;
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      setLoading(false);
     }
-
-    setSuccess(true);
-    setLoading(false);
   };
 
   if (success) {
